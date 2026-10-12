@@ -48,7 +48,7 @@ extension ViewController: UITableViewDataSource {
         // Re-use cell to prevent memory overhead
         let cell = tableView.dequeueReusableCell(withIdentifier: cellId, for: indexPath)
         
-        // Cel configuration
+        // Cell configuration
         var content = cell.defaultContentConfiguration()
         content.text = logRow(indexPath.row)
         content.textProperties.numberOfLines = 0 // allow long log lines to wrap
