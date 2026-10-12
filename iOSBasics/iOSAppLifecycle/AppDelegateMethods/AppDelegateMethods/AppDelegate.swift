@@ -14,6 +14,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     // 1. App is about to launch
+    func application(_ application: UIApplication, willFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+        log(application, launchOptions as Any)
+        return true
+    }
+    
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         log(application, launchOptions as Any)
         // Initialize app-wide resources
@@ -77,7 +82,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     // Supporting methods
-    private func setupAppearance() { log() }
+    private func setupAppearance() {
+        log()
+        let window = UIWindow(frame: UIScreen.main.bounds)
+        window.rootViewController = ViewController()
+        window.makeKeyAndVisible()
+        self.window = window
+    }
+    
     private func setupDatabase() { log() }
     private func startTimer() { log() }
     private func refreshData() { log() }
