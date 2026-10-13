@@ -4,7 +4,6 @@ Topics: [github.com/mukundjogi/ios-interview](https://github.com/mukundjogi/ios-
 
 ## iOS Basics
 ### iOS App Lifecycle
-#### App Delegate Methods
 
 <table>
   <tr valign="top">
@@ -25,6 +24,16 @@ Topics: [github.com/mukundjogi/ios-interview](https://github.com/mukundjogi/ios-
       <a href="https://github.com/mukundjogi/ios-interview/blob/main/docs/ios-basics.md#scene-based-lifecycle-ios-13">Scene Based Lifecycle</a><br><br>
       Code:
       <a href="iOSBasics/iOSAppLifecycle/SceneBasedLifecycle/SceneBasedLifecycle/SceneDelegate.swift">SceneDelegate.swift</a>
+    </td>
+  </tr>
+    <tr valign="top">
+    <td>
+        <a href="screenshots/ManagingUserSession.png"><img src="screenshots/ManagingUserSession.png" alt="ManagingUserSession.png" width="200"></a>
+    </td><td>
+      iOS Basics:
+      <a href="https://github.com/mukundjogi/ios-interview/blob/main/docs/ios-basics.md#practical-example-managing-user-session">Practical Example: Managing User Session</a><br><br>
+      Code:
+      <a href="iOSBasics/iOSAppLifecycle/ManagingUserSession/ManagingUserSession/SessionManager.swift">SessionManager.swift</a>
     </td>
   </tr>
 </table>
