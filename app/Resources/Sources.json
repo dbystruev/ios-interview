@@ -1,0 +1,26 @@
+[
+  {
+    "id": "apple-docs",
+    "name": "Apple Developer Documentation",
+    "baseURL": "https://developer.apple.com/documentation",
+    "notes": "Framework APIs, app lifecycle, concurrency"
+  },
+  {
+    "id": "swiftlee",
+    "name": "SwiftLee",
+    "baseURL": "https://www.avanderlee.com",
+    "notes": "Swift/SwiftUI patterns, concurrency, performance"
+  },
+  {
+    "id": "hws",
+    "name": "Hacking with Swift",
+    "baseURL": "https://www.hackingwithswift.com",
+    "notes": "Practical examples, interview-style explainers"
+  },
+  {
+    "id": "sundell",
+    "name": "Swift by Sundell",
+    "baseURL": "https://www.swiftbysundell.com",
+    "notes": "Architecture, language depth"
+  }
+]

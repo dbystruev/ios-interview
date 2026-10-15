@@ -1,0 +1,14 @@
+Interview Helper 1.0 — What to Test
+
+Initial TestFlight build.
+- Preparation Mode: import .md Q&A (three formats + AI parse fallback), dedup merge, browse/search by topic and keyword.
+- Listening Mode: on-device transcription, topic matching cards, optional AI fallback.
+- Settings: on-device or OpenRouter LLM (free :free models), curated answer sources.
+
+What to verify:
+1. Library shows the bundled sample questions on first launch.
+2. Search filters questions; opening a card shows the answer and sources.
+3. Listen tab typed-transcript matching surfaces the right card.
+4. Import a .md file and confirm inserted/enriched counts.
+
+Report crashes / issues to TestFlight feedback. Thanks!

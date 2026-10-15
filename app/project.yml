@@ -1,0 +1,84 @@
+name: InterviewHelper
+options:
+  deploymentTarget:
+    iOS: "18.0"
+  defaultConfig: Debug
+configs:
+  Debug: debug
+  Release: release
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: NO
+targets:
+  InterviewHelper:
+    type: application
+    platform: iOS
+    info:
+      path: InterviewHelper/Info.plist
+      properties:
+        CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
+        CFBundleDisplayName: Interview Helper
+        ITSAppUsesNonExemptEncryption: false
+        NSMicrophoneUsageDescription: Interview Helper listens to the microphone to transcribe the interview and show relevant Q&A cards.
+        NSSpeechRecognitionUsageDescription: Interview Helper uses on-device speech recognition to transcribe the interview for topic matching.
+        UILaunchScreen: {}
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: net.daringfireball.markdown
+            UTTypeDescription: Markdown document
+            UTTypeConformsTo: [public.plain-text]
+            UTTypeTagSpecification:
+              public.filename-extension: [md, markdown]
+    sources:
+      - path: InterviewHelper
+        excludes:
+          - Info.plist
+      - path: Resources
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_NAME: InterviewHelper
+        PRODUCT_BUNDLE_IDENTIFIER: com.hurated.interview
+        DEVELOPMENT_TEAM: 8J39KF9DMS
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+  InterviewHelperTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: InterviewHelperTests
+    dependencies:
+      - target: InterviewHelper
+    settings:
+      base:
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/InterviewHelper.app/InterviewHelper
+        BUNDLE_LOADER: $(TEST_HOST)
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.hurated.interview.tests
+  InterviewHelperUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: InterviewHelperUITests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.hurated.interview.uitests
+    dependencies:
+      - target: InterviewHelper
+schemes:
+  InterviewHelper:
+    build:
+      targets:
+        InterviewHelper: [run, test, profile, analyze, archive]
+        InterviewHelperTests: [test]
+        InterviewHelperUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - InterviewHelperTests
+        - InterviewHelperUITests

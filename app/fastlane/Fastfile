@@ -1,0 +1,283 @@
+default_platform(:ios)
+
+BUNDLE_ID = "com.hurated.interview"
+APP_VERSION = "1.0"
+ASC_KEY_ID = ENV["ASC_KEY_ID"] || "CDCJAGN567"
+ASC_ISSUER_ID = ENV["ASC_ISSUER_ID"] || "69a6de90-d3c4-47e3-e053-5b8c7c11a4d1"
+ASC_KEY_PATH = File.expand_path("~/Documents/Apple/Keys/Plants/AuthKey_CDCJAGN567.p8")
+
+def api_key_hash
+  if ENV["ASC_PRIVATE_KEY"] && !ENV["ASC_PRIVATE_KEY"].empty?
+    app_store_connect_api_key(
+      key_id: ASC_KEY_ID,
+      issuer_id: ASC_ISSUER_ID,
+      key_content: ENV["ASC_PRIVATE_KEY"],
+      is_key_content_base64: false,
+      duration: 1200,
+      in_house: false
+    )
+  else
+    app_store_connect_api_key(
+      key_id: ASC_KEY_ID,
+      issuer_id: ASC_ISSUER_ID,
+      key_filepath: ASC_KEY_PATH,
+      duration: 1200,
+      in_house: false
+    )
+  end
+end
+
+def connect_token
+  require 'spaceship'
+  if ENV["ASC_PRIVATE_KEY"] && !ENV["ASC_PRIVATE_KEY"].empty?
+    require 'tempfile'
+    tf = Tempfile.new(['AuthKey', '.p8'])
+    tf.write(ENV["ASC_PRIVATE_KEY"]); tf.close
+    Spaceship::ConnectAPI::Token.create(
+      key_id: ASC_KEY_ID, issuer_id: ASC_ISSUER_ID,
+      filepath: tf.path, duration: 1200, in_house: false
+    )
+  else
+    Spaceship::ConnectAPI::Token.create(
+      key_id: ASC_KEY_ID, issuer_id: ASC_ISSUER_ID,
+      filepath: ASC_KEY_PATH, duration: 1200, in_house: false
+    )
+  end
+end
+
+def find_app!
+  require 'spaceship'
+  Spaceship::ConnectAPI.token ||= connect_token
+  app = Spaceship::ConnectAPI::App.all.find { |a| a.bundle_id == BUNDLE_ID }
+  UI.user_error!("Could not find app #{BUNDLE_ID} in App Store Connect — create the app record first") if app.nil?
+  app
+end
+
+desc "Print the next sequential TestFlight build number (latest on ASC + 1)"
+lane :next_build_number do
+  app = find_app!
+  builds = app.get_builds
+  nums = builds.map { |b| b.version.to_i }.reject { |n| n <= 0 }
+  latest = nums.max || 0
+  next_num = latest + 1
+  UI.message("Latest TestFlight build: #{latest == 0 ? '(none)' : latest}, next: #{next_num}")
+  puts "NEXT_BUILD=#{next_num}"
+end
+
+platform :ios do
+  desc "Retry uploading an already-built .ipa (no rebuild) after network failure"
+  lane :retry_upload do
+    ipa_path = ENV["IPA_PATH"] || File.expand_path("InterviewHelper.ipa", __dir__ + "/..")
+    UI.user_error!("IPA not found at #{ipa_path} — rebuild first") unless File.exist?(ipa_path)
+    api_key = api_key_hash
+    UI.message("Uploading #{ipa_path} ...")
+    upload_to_testflight(
+      api_key: api_key,
+      ipa: ipa_path,
+      skip_waiting_for_build_processing: true,
+      skip_submission: true,
+      distribute_external: false,
+      uses_non_exempt_encryption: false
+    )
+    UI.important("External testers don't get this build automatically on this path — run: fastlane distribute_external build:<number>")
+    expire_old_builds
+  end
+
+  desc "Build and upload to TestFlight (com.hurated.interview)"
+  lane :beta do
+    # CI uses secrets ASC_* ; local uses ~/Documents/... fallback
+    api_key = api_key_hash
+    setup_ci if is_ci
+
+    # Build number is set by scripts/build.sh BEFORE this lane runs, derived
+    # from the latest build already on TestFlight + 1.
+    # (Do NOT call increment_build_number here — it would double-increment.)
+    build_app(
+      project: "InterviewHelper.xcodeproj",
+      scheme: "InterviewHelper",
+      export_method: "app-store",
+      include_symbols: true,
+      include_bitcode: false,
+      xcargs: "-allowProvisioningUpdates"
+    )
+
+    changelog_text = File.read(File.expand_path("changelog.txt", __dir__)) rescue "Interview Helper #{APP_VERSION} — iOS interview preparation and live-topic assistance"
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: true,
+      skip_submission: true,
+      distribute_external: false,
+      uses_non_exempt_encryption: false,
+      changelog: changelog_text
+    )
+  end
+
+  desc "Give an uploaded build to external testers: wait for processing, submit for Beta App Review, add to the group, notify testers"
+  desc "Usage: fastlane distribute_external build:1 [group:\"External Testers\"] [app_version:1.0]"
+  lane :distribute_external do |options|
+    build_num = (options[:build] || UI.user_error!("Pass build:<number>, e.g. fastlane distribute_external build:1")).to_s
+    app_version = (options[:app_version] || APP_VERSION).to_s
+    group = options[:group] || ENV["TESTFLIGHT_EXTERNAL_GROUP"] || "External Testers"
+    api_key = api_key_hash
+
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.from(hash: api_key)
+    app = Spaceship::ConnectAPI::App.find(BUNDLE_ID)
+    UI.user_error!("Could not find app #{BUNDLE_ID}") if app.nil?
+    UI.message("Waiting for build #{app_version} (#{build_num}) to finish processing...")
+    FastlaneCore::BuildWatcher.wait_for_build_processing_to_be_complete(
+      app_id: app.id,
+      platform: Spaceship::ConnectAPI::Platform::IOS,
+      app_version: app_version,
+      build_version: build_num,
+      poll_interval: 30,
+      timeout_duration: 45 * 60,
+      return_when_build_appears: false,
+      return_spaceship_testflight_build: false,
+      wait_for_build_beta_detail_processing: true
+    )
+
+    # "What to Test" is required for external review. The `beta` lane already
+    # set it; re-send fastlane/changelog.txt only when it is this build's notes
+    # (its first line names the build), so distributing an older build never
+    # overwrites that build's notes with the current ones.
+    changelog_path = File.expand_path("changelog.txt", __dir__)
+    notes = File.exist?(changelog_path) ? File.read(changelog_path) : ""
+    changelog_text = notes.lines.first.to_s.include?("(#{build_num})") ? notes : nil
+
+    upload_to_testflight(
+      api_key: api_key,
+      distribute_only: true,
+      app_version: app_version,
+      build_number: build_num,
+      changelog: changelog_text,
+      distribute_external: true,
+      groups: [group],
+      submit_beta_review: true,
+      notify_external_testers: true,
+      uses_non_exempt_encryption: false
+    )
+    UI.success("Build #{build_num} submitted for Beta App Review and added to \"#{group}\" — testers are notified once Apple approves it")
+  end
+
+  desc "Keep each external TestFlight group lean: the newest approved build, plus the newest build still awaiting review when it is newer; remove the rest from the group"
+  desc "Usage: fastlane prune_external_groups [group:\"External Testers\"] [dry_run:true]"
+  lane :prune_external_groups do |options|
+    api_key = api_key_hash
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.from(hash: api_key)
+    client = Spaceship::ConnectAPI::APIClient.new(token: Spaceship::ConnectAPI.token)
+    app = Spaceship::ConnectAPI::App.find(BUNDLE_ID)
+    UI.user_error!("Could not find app #{BUNDLE_ID}") if app.nil?
+    dry_run = options[:dry_run].to_s == "true"
+
+    approved_states = %w[BETA_APPROVED IN_BETA_TESTING READY_FOR_BETA_TESTING]
+    awaiting_states = %w[READY_FOR_BETA_SUBMISSION WAITING_FOR_BETA_REVIEW IN_BETA_REVIEW IN_EXPORT_COMPLIANCE_REVIEW PROCESSING]
+
+    groups = app.get_beta_groups.reject(&:is_internal_group)
+    groups = groups.select { |g| g.name == options[:group] } if options[:group]
+    UI.important("No external TestFlight group#{options[:group] ? " named \"#{options[:group]}\"" : ''}") if groups.empty?
+
+    groups.each do |group|
+      resp = client.get("v1/builds", { "filter[betaGroups]" => group.id, include: "buildBetaDetail", limit: 200 })
+      states = (resp.body["included"] || []).select { |i| i["type"] == "buildBetaDetails" }
+                                           .map { |i| [i["id"], i["attributes"]["externalBuildState"]] }.to_h
+      builds = (resp.body["data"] || []).map do |b|
+        a = b["attributes"]
+        { id: b["id"], version: a["version"], number: a["version"].to_i, uploaded: a["uploadedDate"].to_s,
+          expired: a["expired"] == true, state: states[b.dig("relationships", "buildBetaDetail", "data", "id")] }
+      end.sort_by { |b| [b[:number], b[:uploaded]] }.reverse
+      live = builds.reject { |b| b[:expired] }
+
+      approved = live.find { |b| approved_states.include?(b[:state]) }
+      awaiting = live.find { |b| awaiting_states.include?(b[:state]) && (approved.nil? || b[:number] > approved[:number]) }
+      keep = [approved, awaiting].compact
+      if keep.empty?
+        UI.important("#{group.name}: no approved or pending build — left as is (#{builds.map { |b| "#{b[:version]} #{b[:state]}" }.join(', ')})")
+        next
+      end
+
+      remove = builds.reject { |b| keep.include?(b) }
+      UI.message("#{group.name}: keeping #{keep.map { |b| "#{b[:version]} (#{b[:state]})" }.join(' + ')}")
+      removed = 0
+      remove.each do |b|
+        label = "#{b[:version]} (#{b[:expired] ? 'expired' : b[:state]})"
+        if dry_run
+          UI.message("#{group.name}: would remove #{label}")
+          next
+        end
+        begin
+          Spaceship::ConnectAPI.delete_beta_groups_from_build(build_id: b[:id], beta_group_ids: [group.id])
+          removed += 1
+          UI.message("#{group.name}: removed #{label}")
+        rescue => e
+          UI.error("#{group.name}: could not remove #{label}: #{e}")
+        end
+      end
+      UI.success(dry_run ? "#{group.name}: dry run — would remove #{remove.size} build(s)" : "#{group.name}: removed #{removed} of #{remove.size} build(s)")
+    end
+  end
+
+  desc "Expire previous TestFlight builds except latest and externally approved"
+  lane :expire_old_builds do
+    require 'set'
+    Spaceship::ConnectAPI.token ||= connect_token
+    app = find_app!
+    builds = app.get_builds
+    UI.message("Found #{builds.count} builds for #{app.name}")
+    sorted = builds.sort_by { |b| b.uploaded_date || b.id }.reverse
+    keep_ids = Set.new
+    latest = sorted.first
+    keep_ids.add(latest.id) if latest
+    UI.message("Keeping latest build #{latest.version} (uploaded #{latest.uploaded_date})")
+    begin
+      beta_groups = app.respond_to?(:get_beta_groups) ? app.get_beta_groups : []
+      external = beta_groups.select { |g| (g.is_internal_group == false rescue false) }
+      UI.message("External groups: #{external.map(&:name).join(', ')}")
+      client = Spaceship::ConnectAPI::APIClient.new(token: Spaceship::ConnectAPI.token)
+      external.each do |grp|
+        begin
+          resp = client.get("v1/betaGroups/#{grp.id}/builds")
+          data = resp.respond_to?(:body) ? resp.body["data"] : resp["data"]
+          builds_in_group = (data || []).map { |b| b["id"] }
+          keep_ids.merge(builds_in_group)
+          UI.message("Keeping #{builds_in_group.size} external build(s) from #{grp.name}")
+        rescue => e
+          UI.message("Could not fetch builds for group #{grp.name}: #{e}")
+        end
+      end
+    rescue => e
+      UI.message("BetaGroup fetch skipped: #{e}")
+    end
+    expired = 0
+    builds.each do |b|
+      next if keep_ids.include?(b.id)
+      next if b.expired
+      begin
+        UI.message("Expiring build #{b.version} id=#{b.id[0..8]} ...")
+        b.expire!
+        expired += 1
+      rescue => e
+        UI.error("Failed to expire #{b.version}: #{e}")
+      end
+    end
+    UI.success("Expired #{expired} builds, kept #{keep_ids.size} (latest #{latest.version} + external)")
+  end
+
+  desc "Update the TestFlight 'What to Test' notes on an already-uploaded build, without re-uploading a binary"
+  desc "Usage: fastlane set_testflight_notes build:1 (defaults to app_version 1.0; reads fastlane/changelog.txt)"
+  lane :set_testflight_notes do |options|
+    api_key = api_key_hash
+    build_num = options[:build] || UI.user_error!("Pass build:<number>, e.g. fastlane set_testflight_notes build:1")
+    app_version = options[:app_version] || APP_VERSION
+    changelog_text = File.read(File.expand_path("changelog.txt", __dir__))
+    upload_to_testflight(
+      api_key: api_key,
+      distribute_only: true,
+      app_version: app_version,
+      build_number: build_num.to_s,
+      changelog: changelog_text,
+      skip_submission: true,
+      distribute_external: false,
+      uses_non_exempt_encryption: false
+    )
+  end
+end
