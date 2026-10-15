@@ -1,14 +1,23 @@
-Interview Helper 1.0 (3) — What to Test
+Interview Helper 1.0 (4) — What to Test
 
 Changes in this build:
-- app: declare all interface orientations (fixes ITMS-90474 TestFlight rejection)
-- app: fix build.sh root paths (scripts lives under app/)
-- app: Interview Helper v1 — Listening + Preparation modes, OpenRouter, TestFlight pipeline
-- iOS Basics: add DetailedLifecycleMethods
-- iOS Basics: add ManagingUserSession
-- iOS Basics: add SceneBasedLifecycle
-- AppDelegateMethods: remove Main.storyboard
-- iOS Basics: add AppDelegateMethods
-- Add README.md
+- fixed version reporting through build settings and added ignore report.xml to prevent phantom build-3 delays
+- declared all interface orientations to resolve TestFlight rejection (ITMS-90474)
+- corrected build.sh root paths so scripts are properly located under the app directory
+- introduced Interview Helper v1 with new Listening and Preparation modes plus OpenRouter integration and improved TestFlight pipeline
+- added iOS Basics content including DetailedLifecycleMethods, ManagingUserSession, and SceneBasedLifecycle
+- updated AppDelegateMethods by removing Main.storyboard references
+- included a new AppDelegateMethods module for better delegate handling
+- added a README.md file for documentation
+
+What to verify:
+1. Confirm the app version displays correctly using build settings and that report.xml is ignored without causing delays
+2. Check that the app passes the ITMS-90474 TestFlight rejection check by verifying orientation declarations are present
+3. Verify the build.sh script runs without errors when executed from the correct root path
+4. Test both Listening mode and Preparation mode functionality to ensure they work as expected
+5. Ensure OpenRouter integration is active and the TestFlight pipeline processes builds smoothly
+6. Review the new iOS Basics lessons (DetailedLifecycleMethods, ManagingUserSession, SceneBasedLifecycle) for completeness
+7. Confirm AppDelegateMethods has been updated and Main.storyboard is no longer referenced
+8. Read the newly added README.md for additional context and usage instructions
 
 Report crashes / issues to TestFlight feedback. Thanks!
