@@ -25,13 +25,43 @@ public final class Transcriber: NSObject {
 
     public func requestAuthorization() async {
         authState = .requesting
-        let speechGranted = await withCheckedContinuation { continuation in
+        // Sync fast paths: when the user already decided, make no async calls
+        // at all (fewer callbacks crossing threads, no prompt re-trigger).
+        let speechGranted: Bool
+        switch SFSpeechRecognizer.authorizationStatus() {
+        case .authorized:
+            speechGranted = true
+        case .denied, .restricted:
+            speechGranted = false
+        case .notDetermined:
+            speechGranted = await requestSpeechAuthorization()
+        @unknown default:
+            speechGranted = false
+        }
+        let micGranted: Bool
+        switch AVAudioApplication.shared.recordPermission {
+        case .granted:
+            micGranted = true
+        case .denied:
+            micGranted = false
+        case .undetermined:
+            micGranted = await AVAudioApplication.requestRecordPermission()
+        @unknown default:
+            micGranted = false
+        }
+        authState = (speechGranted && micGranted) ? .granted : .denied
+    }
+
+    /// Single-resume wrapper: the system auth handler must resume its
+    /// continuation exactly once — a second resume traps (EXC_BREAKPOINT).
+    private func requestSpeechAuthorization() async -> Bool {
+        let gate = ResumeGate()
+        return await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { status in
+                guard gate.claim() else { return }
                 continuation.resume(returning: status == .authorized)
             }
         }
-        let micGranted = await AVAudioApplication.requestRecordPermission()
-        authState = (speechGranted && micGranted) ? .granted : .denied
     }
 
     @discardableResult
@@ -113,6 +143,21 @@ public final class Transcriber: NSObject {
     public func injectTranscript(_ text: String, isFinal: Bool = true) {
         Task { @MainActor in
             self.onResult?(text, isFinal)
+        }
+    }
+}
+
+/// One-shot claim box: guards a checked continuation against double-resume
+/// when a system callback fires more than once (a second resume traps).
+private final class ResumeGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var claimed = false
+
+    func claim() -> Bool {
+        lock.withLock {
+            if claimed { return false }
+            claimed = true
+            return true
         }
     }
 }

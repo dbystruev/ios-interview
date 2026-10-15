@@ -49,30 +49,33 @@ final class ListeningViewModel {
     }
 
     private func startListening() {
-        Task {
-            await transcriber.requestAuthorization()
-            guard transcriber.authState == .granted else {
-                errorMessage = "Microphone and speech recognition access is required. Allow access in Settings → Interview Helper, then try again."
+        // Outer task holds self weakly so inner [weak self] captures agree
+        // (and a dismissed view aborts the start instead of leaking).
+        Task { @MainActor [weak self] in
+            guard let strongSelf = self else { return }
+            await strongSelf.transcriber.requestAuthorization()
+            guard strongSelf.transcriber.authState == .granted else {
+                strongSelf.errorMessage = "Microphone and speech recognition access is required. Allow access in Settings → Interview Helper, then try again."
                 return
             }
-            refreshIndex(context: context)
-            await buffer.clear()
-            aiAnswer = nil
-            aiBusy = false
-            emptySince = Date()
-            errorMessage = nil
-            let started = transcriber.start(onResult: { [weak self] text, isFinal in
+            strongSelf.refreshIndex(context: strongSelf.context)
+            await strongSelf.buffer.clear()
+            strongSelf.aiAnswer = nil
+            strongSelf.aiBusy = false
+            strongSelf.emptySince = Date()
+            strongSelf.errorMessage = nil
+            let started = strongSelf.transcriber.start(onResult: { [weak self] text, isFinal in
                 Task { @MainActor [weak self] in
                     await self?.receivedTranscript(text, isFinal: isFinal)
                 }
             })
             guard started else {
-                errorMessage = transcriber.lastError ?? "Could not start listening."
+                strongSelf.errorMessage = strongSelf.transcriber.lastError ?? "Could not start listening."
                 return
             }
-            isListening = true
-            matchTask?.cancel()
-            matchTask = Task { @MainActor [weak self] in
+            strongSelf.isListening = true
+            strongSelf.matchTask?.cancel()
+            strongSelf.matchTask = Task { @MainActor [weak self] in
                 while let strong = self, strong.isListening {
                     try? await Task.sleep(for: .seconds(2))
                     if Task.isCancelled { break }
