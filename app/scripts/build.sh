@@ -10,8 +10,8 @@ export LANG=en_US.UTF-8 LANGUAGE=en_US.UTF-8 LC_ALL=en_US.UTF-8
 # Usage: ./scripts/build.sh beta   (builds com.hurated.interview → TestFlight)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-APP_DIR="$PROJECT_ROOT/app"
+APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+PROJECT_ROOT="$(cd "$APP_DIR/.." && pwd)"
 cd "$APP_DIR"
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
