@@ -1,23 +1,9 @@
-Interview Helper 1.0 (4) — What to Test
-
-Changes in this build:
-- fixed version reporting through build settings and added ignore report.xml to prevent phantom build-3 delays
-- declared all interface orientations to resolve TestFlight rejection (ITMS-90474)
-- corrected build.sh root paths so scripts are properly located under the app directory
-- introduced Interview Helper v1 with new Listening and Preparation modes plus OpenRouter integration and improved TestFlight pipeline
-- added iOS Basics content including DetailedLifecycleMethods, ManagingUserSession, and SceneBasedLifecycle
-- updated AppDelegateMethods by removing Main.storyboard references
-- included a new AppDelegateMethods module for better delegate handling
-- added a README.md file for documentation
-
+Interview Helper 1.0 (5) — What to Test
+Fixed a crash that occurred when starting listening without proper microphone permission or with an invalid audio input format; the app now checks permission and input format before listening, reports clear errors, and includes regression tests for this behavior.
 What to verify:
-1. Confirm the app version displays correctly using build settings and that report.xml is ignored without causing delays
-2. Check that the app passes the ITMS-90474 TestFlight rejection check by verifying orientation declarations are present
-3. Verify the build.sh script runs without errors when executed from the correct root path
-4. Test both Listening mode and Preparation mode functionality to ensure they work as expected
-5. Ensure OpenRouter integration is active and the TestFlight pipeline processes builds smoothly
-6. Review the new iOS Basics lessons (DetailedLifecycleMethods, ManagingUserSession, SceneBasedLifecycle) for completeness
-7. Confirm AppDelegateMethods has been updated and Main.storyboard is no longer referenced
-8. Read the newly added README.md for additional context and usage instructions
-
+1. Launch the app, go to the Listening screen, tap Start and confirm the app does not crash and shows the Listening state only after microphone permission is granted.
+2. Deny microphone permission in the device settings and tap Start; verify a clear error message appears and the app remains stable.
+3. Attempt to start listening on a device or simulator without a valid microphone (e.g., no audio input channels); verify the app reports an error about invalid input format and does not crash.
+4. Check that the app version displayed in Settings > General > About shows 1.0 (build 5).
+5. Verify that the ListeningViewModel only transitions to the Listening state after permission is granted and the start operation succeeds, and that the UI reflects this correctly.
 Report crashes / issues to TestFlight feedback. Thanks!
