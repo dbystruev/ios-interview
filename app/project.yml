@@ -21,6 +21,11 @@ targets:
       properties:
         CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
         CFBundleDisplayName: Interview Helper
+        # Version source of truth: project.yml MARKETING_VERSION /
+        # CURRENT_PROJECT_VERSION (bumped by scripts/build.sh). Xcode expands
+        # these at build time; do NOT hardcode numbers here.
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
         NSMicrophoneUsageDescription: Interview Helper listens to the microphone to transcribe the interview and show relevant Q&A cards.
         NSSpeechRecognitionUsageDescription: Interview Helper uses on-device speech recognition to transcribe the interview for topic matching.

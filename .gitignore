@@ -7,4 +7,4 @@ app/InterviewHelper.xcodeproj
 # fastlane / TestFlight artifacts (generated, never commit)
 *.ipa
 *.dSYM.zip
-fastlane/report.xml
+**/fastlane/report.xml

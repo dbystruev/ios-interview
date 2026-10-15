@@ -208,7 +208,7 @@ echo "Expiring old TestFlight builds (keeping latest + external)..."
 # Explicitly exclude just in case.
 echo "Staging code changes (excluding secrets/logs)..."
 cd "$PROJECT_ROOT"
-git add -A -- ':!*.ipa' ':!*.dSYM.zip' ':!*.log' ':!fastlane/report.xml' ':!DerivedData' || true
+git add -A -- ':!*.ipa' ':!*.dSYM.zip' ':!*.log' ':!app/fastlane/report.xml' ':!DerivedData' || true
 if git diff --cached --quiet; then
   echo "Nothing to commit."
 else
