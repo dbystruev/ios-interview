@@ -34,12 +34,13 @@ public final class Transcriber: NSObject {
         authState = (speechGranted && micGranted) ? .granted : .denied
     }
 
-    public func start(onResult: @escaping @MainActor @Sendable (String, Bool) -> Void) {
-        if isListening { return }
+    @discardableResult
+    public func start(onResult: @escaping @MainActor @Sendable (String, Bool) -> Void) -> Bool {
+        if isListening { return true }
         self.onResult = onResult
         guard let recognizer = recognizer ?? SFSpeechRecognizer(), recognizer.isAvailable else {
             lastError = "Speech recognition unavailable"
-            return
+            return false
         }
         self.recognizer = recognizer
         do {
@@ -48,16 +49,23 @@ public final class Transcriber: NSObject {
             try session.setActive(true, options: [])
         } catch {
             lastError = error.localizedDescription
-            return
+            return false
         }
         let engine = AVAudioEngine()
+        let inputNode = engine.inputNode
+        let format = inputNode.outputFormat(forBus: 0)
+        // Without microphone access the input format has no channels and
+        // installTap traps (SIGABRT). Never tap an invalid format.
+        guard format.channelCount > 0, format.sampleRate > 0 else {
+            lastError = "Microphone unavailable. Grant microphone access in Settings and try again."
+            try? AVAudioSession.sharedInstance().setActive(false)
+            return false
+        }
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         if recognizer.supportsOnDeviceRecognition {
             request.requiresOnDeviceRecognition = true
         }
-        let inputNode = engine.inputNode
-        let format = inputNode.outputFormat(forBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
             request.append(buffer)
         }
@@ -81,9 +89,11 @@ public final class Transcriber: NSObject {
             engine.prepare()
             try engine.start()
             isListening = true
+            return true
         } catch {
             lastError = error.localizedDescription
             stop()
+            return false
         }
     }
 

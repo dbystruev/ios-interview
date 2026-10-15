@@ -50,19 +50,27 @@ final class ListeningViewModel {
 
     private func startListening() {
         Task {
-            _ = await transcriber.requestAuthorization()
+            await transcriber.requestAuthorization()
+            guard transcriber.authState == .granted else {
+                errorMessage = "Microphone and speech recognition access is required. Allow access in Settings → Interview Helper, then try again."
+                return
+            }
             refreshIndex(context: context)
             await buffer.clear()
             aiAnswer = nil
             aiBusy = false
             emptySince = Date()
             errorMessage = nil
-            isListening = true
-            transcriber.start(onResult: { [weak self] text, isFinal in
+            let started = transcriber.start(onResult: { [weak self] text, isFinal in
                 Task { @MainActor [weak self] in
                     await self?.receivedTranscript(text, isFinal: isFinal)
                 }
             })
+            guard started else {
+                errorMessage = transcriber.lastError ?? "Could not start listening."
+                return
+            }
+            isListening = true
             matchTask?.cancel()
             matchTask = Task { @MainActor [weak self] in
                 while let strong = self, strong.isListening {
