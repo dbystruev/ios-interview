@@ -55,7 +55,7 @@ final class ListeningViewModel {
             guard let strongSelf = self else { return }
             await strongSelf.transcriber.requestAuthorization()
             guard strongSelf.transcriber.authState == .granted else {
-                strongSelf.errorMessage = "Microphone and speech recognition access is required. Allow access in Settings → Interview Helper, then try again."
+                strongSelf.errorMessage = "Microphone and speech recognition access is required. Allow access in Settings → Apps → Interview Helper, then try again."
                 return
             }
             strongSelf.refreshIndex(context: strongSelf.context)

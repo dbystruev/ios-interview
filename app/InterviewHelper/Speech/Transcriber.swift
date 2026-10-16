@@ -16,6 +16,7 @@ public final class Transcriber: NSObject {
     private var recognitionTask: SFSpeechRecognitionTask?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognizer: SFSpeechRecognizer?
+    private var pipeline: AudioPipeline?
     private var onResult: (@MainActor @Sendable (String, Bool) -> Void)?
 
     public override init() {
@@ -96,25 +97,18 @@ public final class Transcriber: NSObject {
         if recognizer.supportsOnDeviceRecognition {
             request.requiresOnDeviceRecognition = true
         }
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
-            request.append(buffer)
-        }
+        // The tap and the recognition callback run on Apple's real-time and
+        // Speech queues — NOT the main thread. They must be nonisolated:
+        // closures created in this @MainActor context inherit MainActor
+        // isolation, and Swift 6 traps when they execute elsewhere
+        // (dispatch_assert_queue → EXC_BREAKPOINT). AudioPipeline builds them
+        // in a nonisolated context; UI work hops back via Task.
+        let pipeline = AudioPipeline(owner: self, request: request, node: inputNode, format: format)
+        pipeline.installTap()
         recognitionRequest = request
         audioEngine = engine
-        recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
-            Task { @MainActor [weak self] in
-                guard let self, self.isListening else { return }
-                if let result = result, !result.bestTranscription.formattedString.isEmpty {
-                    self.onResult?(result.bestTranscription.formattedString, result.isFinal)
-                }
-                if error != nil {
-                    self.lastError = error?.localizedDescription
-                    self.stop()
-                } else if result?.isFinal == true {
-                    self.stop()
-                }
-            }
-        }
+        self.pipeline = pipeline
+        recognitionTask = recognizer.recognitionTask(with: request, resultHandler: pipeline.makeResultHandler())
         do {
             engine.prepare()
             try engine.start()
@@ -127,6 +121,21 @@ public final class Transcriber: NSObject {
         }
     }
 
+    /// MainActor entry point for pipeline callbacks (text/error only —
+    /// everything crossing the queue boundary is Sendable by construction).
+    fileprivate func handlePipelineResult(hasResult: Bool, text: String, isFinal: Bool, errorDescription: String?) {
+        guard isListening else { return }
+        if hasResult, !text.isEmpty {
+            onResult?(text, isFinal)
+        }
+        if let errorDescription {
+            lastError = errorDescription
+            stop()
+        } else if hasResult, isFinal {
+            stop()
+        }
+    }
+
     public func stop() {
         recognitionTask?.cancel()
         recognitionTask = nil
@@ -136,6 +145,8 @@ public final class Transcriber: NSObject {
         }
         audioEngine = nil
         recognitionRequest = nil
+        pipeline = nil
+        onResult = nil
         try? AVAudioSession.sharedInstance().setActive(false)
         isListening = false
     }
@@ -143,6 +154,42 @@ public final class Transcriber: NSObject {
     public func injectTranscript(_ text: String, isFinal: Bool = true) {
         Task { @MainActor in
             self.onResult?(text, isFinal)
+        }
+    }
+}
+
+/// Owns the pieces of a listening session that execute off the main thread:
+/// the real-time audio tap and the Speech-callback handler. Everything here
+/// is nonisolated, so Swift 6 emits no main-executor assertions for it.
+private struct AudioPipeline: @unchecked Sendable {
+    weak var owner: Transcriber?
+    let request: SFSpeechAudioBufferRecognitionRequest
+    let node: AVAudioInputNode
+    let format: AVAudioFormat
+
+    nonisolated func installTap() {
+        node.installTap(onBus: 0, bufferSize: 1024, format: format) { [request] buffer, _ in
+            request.append(buffer)
+        }
+    }
+
+    nonisolated func makeResultHandler() -> (SFSpeechRecognitionResult?, Error?) -> Void {
+        { [pipeline = self] result, error in
+            // Reduce to Sendable values before hopping; SFSpeech types and
+            // Error existentials must not cross into the MainActor Task.
+            let hasResult = result != nil
+            let text = result?.bestTranscription.formattedString ?? ""
+            let isFinal = result?.isFinal ?? false
+            let errorDescription = error?.localizedDescription
+            Task { @MainActor in
+                guard let owner = pipeline.owner else { return }
+                owner.handlePipelineResult(
+                    hasResult: hasResult,
+                    text: text,
+                    isFinal: isFinal,
+                    errorDescription: errorDescription
+                )
+            }
         }
     }
 }

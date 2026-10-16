@@ -23,6 +23,11 @@ struct ListeningView: View {
                 let vm = ListeningViewModel(context: context, settings: settings)
                 vm.refreshIndex(context: context)
                 viewModel = vm
+                // Device-diagnostics hook: launch with --auto-listen to start
+                // the microphone without tapping (used for on-device log runs).
+                if CommandLine.arguments.contains("--auto-listen") {
+                    vm.toggle()
+                }
             }
         }
     }

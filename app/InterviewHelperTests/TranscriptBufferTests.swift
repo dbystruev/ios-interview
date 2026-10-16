@@ -54,3 +54,31 @@ import Testing
     #expect(await buffer.count == 200)
     #expect(await buffer.segments.first?.text == "final segment 5")
 }
+
+@Test func lemlistScriptTagIsJunk() {
+    #expect(TranscriptSanitizer.isJunk("<script type=\"text/javascript\" src=\"https://visitors.lemlist.com/api/visitors/tracking?k=abc\"></script>"))
+}
+
+@Test func realQuestionsAreKept() {
+    #expect(!TranscriptSanitizer.isJunk("difference between weak and unowned references"))
+    #expect(!TranscriptSanitizer.isJunk("when do retain cycles occur"))
+    #expect(!TranscriptSanitizer.isJunk("viewDidLoad versus viewWillAppear"))
+    #expect(!TranscriptSanitizer.isJunk("uh"))
+}
+
+@Test func codeAndUrlsAreJunk() {
+    #expect(TranscriptSanitizer.isJunk("Array<Int> dictionary String"))
+    #expect(TranscriptSanitizer.isJunk("see https://example.com/docs for more"))
+    #expect(TranscriptSanitizer.isJunk("12345"))
+    #expect(TranscriptSanitizer.isJunk("   "))
+}
+
+@Test func bufferDropsJunk() async {
+    let buffer = TranscriptBuffer()
+    await buffer.append("<script src=\"https://x.lemlist.com/y.js\"></script>", isFinal: true)
+    #expect(await buffer.count == 0)
+    #expect(await buffer.droppedJunk == 1)
+    #expect(await buffer.windowText() == "")
+    await buffer.append("what is a retain cycle", isFinal: true)
+    #expect(await buffer.count == 1)
+}

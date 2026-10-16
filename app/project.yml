@@ -72,6 +72,7 @@ targets:
         BUNDLE_LOADER: $(TEST_HOST)
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.hurated.interview.tests
+        DEVELOPMENT_TEAM: 8J39KF9DMS
   InterviewHelperUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -81,6 +82,7 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: com.hurated.interview.uitests
+        DEVELOPMENT_TEAM: 8J39KF9DMS
     dependencies:
       - target: InterviewHelper
 schemes:
