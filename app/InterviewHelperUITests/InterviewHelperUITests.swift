@@ -46,13 +46,14 @@ final class InterviewHelperUITests: XCTestCase {
         app.launch()
         tapTab(app, id: "tab-listen", fallback: "Listen")
 
+        app.buttons["testInputToggle"].tap()
         let field = app.textFields["typedTranscript"]
         XCTAssertTrue(field.waitForExistence(timeout: 10))
         field.tap()
         field.typeText("difference between weak and unowned references")
         app.buttons["matchButton"].tap()
 
-        let card = staticText(containing: "weak and unowned", in: app)
-        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        let answer = staticText(containing: "does not increase the reference count", in: app)
+        XCTAssertTrue(answer.waitForExistence(timeout: 5))
     }
 }

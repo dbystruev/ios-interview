@@ -4,9 +4,18 @@ import SwiftData
 
 @MainActor @Observable
 final class ListeningViewModel {
+    struct FeedItem: Sendable, Hashable, Identifiable {
+        var id: String
+        var entryID: String
+        var text: String
+        var isAI: Bool
+    }
+
     var cards: [ScoredEntry] = []
+    var feed: [FeedItem] = []
     var transcriptPreview: String = ""
     var isListening: Bool = false
+    var showStop = false
     var aiAnswer: GeneratedAnswer?
     var aiBusy: Bool = false
     var errorMessage: String?
@@ -18,12 +27,15 @@ final class ListeningViewModel {
 
     private var index: [MatchableEntry] = []
     private var matchTask: Task<Void, Never>?
+    private var stopWatchTask: Task<Void, Never>?
     private var aiTask: Task<Void, Never>?
     private var currentTopID: String?
     private var currentTopScore: Double = 0
     private var currentTopDate: Date?
     private var emptySince: Date?
     private var lastAIFire: Date?
+    private var lastTalkAt: Date?
+    private var lastFedEntryID: String?
 
     init(context: ModelContext, settings: AppSettings, transcriber: Transcriber = Transcriber()) {
         self.context = context
@@ -64,6 +76,10 @@ final class ListeningViewModel {
             strongSelf.aiBusy = false
             strongSelf.emptySince = Date()
             strongSelf.errorMessage = nil
+            strongSelf.feed = []
+            strongSelf.lastFedEntryID = nil
+            strongSelf.lastTalkAt = Date()
+            strongSelf.showStop = false
             let started = strongSelf.transcriber.start(onResult: { [weak self] text, isFinal in
                 Task { @MainActor [weak self] in
                     await self?.receivedTranscript(text, isFinal: isFinal)
@@ -82,18 +98,34 @@ final class ListeningViewModel {
                     await strong.matchNow()
                 }
             }
+            // Stop appears only after 2s of silence, hides the moment talk resumes.
+            strongSelf.stopWatchTask?.cancel()
+            strongSelf.stopWatchTask = Task { @MainActor [weak self] in
+                while let strong = self, strong.isListening {
+                    try? await Task.sleep(for: .seconds(0.5))
+                    if Task.isCancelled { break }
+                    let silentFor = Date().timeIntervalSince(strong.lastTalkAt ?? Date())
+                    let shouldShow = silentFor >= 2
+                    if strong.showStop != shouldShow { strong.showStop = shouldShow }
+                }
+            }
         }
     }
 
     private func stopListening() {
         matchTask?.cancel()
         matchTask = nil
+        stopWatchTask?.cancel()
+        stopWatchTask = nil
+        showStop = false
         aiTask?.cancel()
         transcriber.stop()
         isListening = false
     }
 
     private func receivedTranscript(_ text: String, isFinal: Bool) async {
+        lastTalkAt = Date()
+        if showStop { showStop = false }
         await buffer.append(text, isFinal: isFinal)
         transcriptPreview = await buffer.windowText(maxAge: settings.windowSeconds, maxChars: 2000)
         await matchNow()
@@ -136,6 +168,22 @@ final class ListeningViewModel {
         emptySince = nil
         aiTask?.cancel()
         if aiAnswer != nil { aiAnswer = nil }
+        appendFeed(entryID: id, text: feedText(for: ranked.first?.entry), isAI: false)
+    }
+
+    /// Answers only — newest last. Same entry re-matching appends nothing.
+    private func appendFeed(entryID: String, text: String, isAI: Bool) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        if !isAI, lastFedEntryID == entryID { return }
+        if !isAI { lastFedEntryID = entryID }
+        feed.append(FeedItem(id: UUID().uuidString, entryID: entryID, text: trimmed, isAI: isAI))
+        if feed.count > 30 { feed.removeFirst(feed.count - 30) }
+    }
+
+    private func feedText(for entry: MatchableEntry?) -> String {
+        guard let entry else { return "" }
+        return entry.answer.isEmpty ? entry.question : entry.answer
     }
 
     private func maybeTriggerAI() {
@@ -159,7 +207,10 @@ final class ListeningViewModel {
             do {
                 let answer = try await llm.answer(transcript: window, nearMiss: nil, allowedHosts: Array(registry.allowedHosts), topic: nil)
                 if Task.isCancelled { return }
-                if self.cards.isEmpty { self.aiAnswer = answer }
+                if self.cards.isEmpty {
+                    self.aiAnswer = answer
+                    self.appendFeed(entryID: "ai-\(UUID().uuidString)", text: answer.text, isAI: true)
+                }
             } catch {
                 if Task.isCancelled { return }
                 self.errorMessage = error.localizedDescription
@@ -168,6 +219,8 @@ final class ListeningViewModel {
     }
 
     func injectTestTranscript(_ text: String) {
+        lastTalkAt = Date()
+        showStop = false
         Task {
             refreshIndex(context: context)
             await buffer.append(text, isFinal: true)
