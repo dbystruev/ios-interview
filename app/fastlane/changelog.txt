@@ -1,9 +1,9 @@
-Interview Helper 1.0 (5) — What to Test
-Fixed a crash that occurred when starting listening without proper microphone permission or with an invalid audio input format; the app now checks permission and input format before listening, reports clear errors, and includes regression tests for this behavior.
+Interview Helper 1.0 (6) — What to Test
+This build resolves crashes in the microphone pipeline and when requesting microphone permission, eliminates the single‑resume authorization issue, and adds proper handling for silence capture warnings. The audio‑tap and speech callbacks are now correctly isolated, preventing EXC_BREAKPOINT errors, and the app validates permission and audio input format before listening.
+
 What to verify:
 1. Launch the app, go to the Listening screen, tap Start and confirm the app does not crash and shows the Listening state only after microphone permission is granted.
 2. Deny microphone permission in the device settings and tap Start; verify a clear error message appears and the app remains stable.
 3. Attempt to start listening on a device or simulator without a valid microphone (e.g., no audio input channels); verify the app reports an error about invalid input format and does not crash.
-4. Check that the app version displayed in Settings > General > About shows 1.0 (build 5).
-5. Verify that the ListeningViewModel only transitions to the Listening state after permission is granted and the start operation succeeds, and that the UI reflects this correctly.
-Report crashes / issues to TestFlight feedback. Thanks!
+4. Check that the app version displayed in Settings > General > About shows 1.0 (build 6).
+5. Verify that the ListeningViewModel only transitions to the Listening state after permission is granted and the start operation succeeds, and that the UI reflects this correctly. Report crashes / issues to TestFlight feedback. Thanks!
