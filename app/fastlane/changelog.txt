@@ -1,9 +1,15 @@
-Interview Helper 1.0 (6) — What to Test
-This build resolves crashes in the microphone pipeline and when requesting microphone permission, eliminates the single‑resume authorization issue, and adds proper handling for silence capture warnings. The audio‑tap and speech callbacks are now correctly isolated, preventing EXC_BREAKPOINT errors, and the app validates permission and audio input format before listening.
+Interview Helper 1.0 (7) — What to Test
 
-What to verify:
-1. Launch the app, go to the Listening screen, tap Start and confirm the app does not crash and shows the Listening state only after microphone permission is granted.
-2. Deny microphone permission in the device settings and tap Start; verify a clear error message appears and the app remains stable.
-3. Attempt to start listening on a device or simulator without a valid microphone (e.g., no audio input channels); verify the app reports an error about invalid input format and does not crash.
-4. Check that the app version displayed in Settings > General > About shows 1.0 (build 6).
-5. Verify that the ListeningViewModel only transitions to the Listening state after permission is granted and the start operation succeeds, and that the UI reflects this correctly. Report crashes / issues to TestFlight feedback. Thanks!
+The latest build introduces a new glanceable Listen UI that presents only the best answers as an auto‑scrolling feed, removing the old question and transcript chrome. A contextual Stop button appears after a brief pause of silence and vanishes instantly when you speak again; otherwise the screen shows a single large Start button while idle. New AI answers are added to the feed with a verification caption and a Save action, and the previously hidden test input is now accessible via a collapsible toggle. Additionally, the QACardView component has been removed and SafariView has been moved to its own file.
+
+What to verify
+1. Launch the app, open the Listening screen, tap Start and confirm the app stays alive and displays only the Listening state until microphone permission is granted.
+2. Deny microphone permission in Device Settings and tap Start; verify a clear error message appears and the app remains stable.
+3. Attempt to start listening on a device or simulator without a functional microphone (no audio input channels) and check that the app reports an invalid input format error instead of crashing.
+4. Open Settings > General > About and confirm the version is listed as 1.0 (build 7).
+5. Observe the Listen view: large‑title answers should scroll automatically, there should be no status bar, transcript, topic or question overlay, and the history should be capped at 30 entries. History survives a Stop event and is cleared when the app starts fresh.
+6. Verify that the Stop button only becomes visible after roughly two seconds of silence and disappears immediately upon speaking; during idle the interface shows a single prominent Start button.
+7. Confirm that AI‑generated responses appear with a “verify” caption and a Save option, and that the test input toggle collapses correctly when the user switches between typing and viewing results.
+8. Inspect the UI to ensure QACardView is gone and that SafariView resides in its own file, indicating the layout changes have taken effect. 
+
+Report crashes / issues to TestFlight feedback. Thanks!
