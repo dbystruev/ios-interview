@@ -131,9 +131,8 @@ public final class Transcriber: NSObject {
         if let errorDescription {
             lastError = errorDescription
             stop()
-        } else if hasResult, isFinal {
-            stop()
         }
+        // Keep listening on final results — only the user stops listening.
     }
 
     public func stop() {

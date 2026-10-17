@@ -23,6 +23,7 @@ struct ListeningView: View {
                     ProgressView("Preparing…")
                 }
             }
+            .toolbar(tabBarVisibility, for: .tabBar)
         }
         .task {
             if viewModel == nil {
@@ -48,6 +49,12 @@ struct ListeningView: View {
             get: { viewModel?.errorMessage != nil },
             set: { if $0 == false { viewModel?.errorMessage = nil } }
         )
+    }
+
+    private var tabBarVisibility: Visibility {
+        guard let vm = viewModel else { return .visible }
+        // Full screen for the answer while talking; tabs return with Stop.
+        return (vm.isListening && !vm.showStop) ? .hidden : .visible
     }
 
     private func startView(vm: ListeningViewModel) -> some View {
