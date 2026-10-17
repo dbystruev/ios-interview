@@ -1,6 +1,13 @@
-Interview Helper 1.0 (8) — What to Test
 
-Changes in this build:
-- app: keep listening after each final result (fix frozen answers)
+
+Interview Helper 1.0 (9) — What to Test
+
+The app now continues listening while you speak, updating the answer in real time and preventing frozen responses. The tab bar hides during conversation and reappears when you stop, and the screen stays on while listening.
+
+What to verify:
+1. Start speaking and keep talking; confirm the app keeps listening and updates the answer without freezing.
+2. Notice that the tab bar disappears while you are talking and returns after you stop.
+3. Check that the device screen remains on during the listening period.
+4. After stopping, verify the app returns to normal mode and the tab bar is visible.
 
 Report crashes / issues to TestFlight feedback. Thanks!

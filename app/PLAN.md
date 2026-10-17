@@ -167,7 +167,7 @@ Every import merges into the existing DB — re-importing the same file is idemp
 
 - [ ] Import both `~/Desktop/book/*.md` files plus all `Human-Rated-AI/.../seed/fixtures/interview-*.md` files with zero dropped questions; questionable ones flagged `needsReview`; overlapping questions merged/enriched, never duplicated; re-import creates zero new rows.
 - [ ] Browse/search by topic/keyword works offline.
-- [ ] On device, speaking an interview question surfaces the right card within ~3s.
+- [ ] Keeps screen on while listening; Stop appears after ~2s of silence, hides on speech; tab bar hides while listening.
 - [ ] With no match and fallback on, an AI answer appears labeled as such; with fallback off, a clean empty state appears.
 - [ ] Unknown-format `.md` parses via "Parse with AI" with zero dropped questions; question-only entries stored (`hasAnswer = false`) and answer-generable.
 - [ ] Default on-device LLM works with no key; OpenRouter provider works with a user-supplied key from Settings (Keychain-stored).

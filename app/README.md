@@ -6,10 +6,11 @@ SwiftUI iOS app with two modes for iOS interview prep and live assistance.
 
 ### 1. Listening Mode (live assist)
 - Continuously listens to the interview in parallel (mic, on-device Speech).
-- Keeps a rolling transcript window (last ~30–60s).
-- Detects the topic being discussed and shows the best matching Q&A cards from the local DB.
-- If no local match (score < threshold), optionally asks the LLM and shows the response, marked as `AI-generated`.
+- Keeps a rolling transcript window (last ~30–60s) of what is being said **right now**; nothing is stored.
+- Shows answers from the local Q&A DB as large full-screen cards below the live line — updated continuously while you talk.
+- If no local match after ~5s, optionally asks the LLM and shows the response, marked as `AI-generated`.
 - Never auto-plays audio; silent on-screen cards only.
+- Keeps the screen on while listening; Stop appears only after ~2s of silence and hides again instantly when you speak.
 
 ### 2. Preparation Mode (study)
 - Imports pre-loaded `.md` Q&A files (see `~/Desktop/book/*.md` and `~/Downloads/GitHub/Human-Rated-AI/interview/server/seed/fixtures/*.md`).
@@ -121,7 +122,7 @@ app/
                              # OpenRouter, Mock providers + KeychainStore
     Sources/                 # SourceRegistry (curated list + allowlist)
     UI/
-      Listen/                # ListeningView(Model), QACardView (source chips)
+      Listen/                # ListeningView(Model): running transcript line + answer feed
       Prepare/               # LibraryView(Model), QADetailView, Import
       Settings/              # LLM provider + OpenRouter key/model, sources, privacy
   Resources/                 # bundled: SampleQA/*.md, Sources.json
