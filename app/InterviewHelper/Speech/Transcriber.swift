@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import AVFoundation
 import Speech
 
@@ -148,6 +149,7 @@ public final class Transcriber: NSObject {
         onResult = nil
         try? AVAudioSession.sharedInstance().setActive(false)
         isListening = false
+        UIApplication.shared.isIdleTimerDisabled = false
     }
 
     public func injectTranscript(_ text: String, isFinal: Bool = true) {
