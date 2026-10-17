@@ -12,9 +12,9 @@ final class ListeningViewModel {
         var isAI: Bool
     }
 
-    /// Live running line of what is being said right now (partials included).
-    var runningTranscript: String = ""
-    /// Completed phrases after a pause — shown when nothing is being said.
+    /// What is being said right now — single scrolling line while talking.
+    var currentUtterance: String = ""
+    /// Completed phrases after pauses — shown when nothing is being said.
     var lastSaidPhrases: String = ""
 
     var feed: [FeedItem] = []
@@ -64,7 +64,7 @@ final class ListeningViewModel {
             strongSelf.aiAnswer = nil
             strongSelf.aiBusy = false
             strongSelf.errorMessage = nil
-            strongSelf.runningTranscript = ""
+            strongSelf.currentUtterance = ""
             strongSelf.lastSaidPhrases = ""
             strongSelf.feed = []
             strongSelf.lastFedEntryID = nil
@@ -124,10 +124,9 @@ final class ListeningViewModel {
 
         if isFinal {
             lastSaidPhrases = (lastSaidPhrases + " " + text).trimmingCharacters(in: .whitespacesAndNewlines)
-            runningTranscript = lastSaidPhrases
+            currentUtterance = ""
         } else {
-            let base = lastSaidPhrases.isEmpty ? "" : lastSaidPhrases + " "
-            runningTranscript = base + text
+            currentUtterance = text
         }
 
         await buffer.append(text, isFinal: isFinal)
@@ -135,7 +134,8 @@ final class ListeningViewModel {
     }
 
     private func matchNow() async {
-        let text = runningTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Match against what is being said right now — short and clean.
+        let text = currentUtterance.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         let matcher = TopicMatcher(threshold: settings.matchThreshold, limit: 3)
         let ranked = matcher.rank(query: text, entries: index)
@@ -181,7 +181,7 @@ final class ListeningViewModel {
             defer { self.aiBusy = false }
             let seed = SourceRegistry.loadSeed(bundle: .main)
             let registry = SourceRegistry(seed: seed, customHosts: self.settings.customSourceHosts)
-            let window = self.runningTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+            let window = self.currentUtterance.trimmingCharacters(in: .whitespacesAndNewlines)
             do {
                 let answer = try await llm.answer(transcript: window, nearMiss: nil, allowedHosts: Array(registry.allowedHosts), topic: nil)
                 if Task.isCancelled { return }
@@ -200,7 +200,7 @@ final class ListeningViewModel {
         Task {
             refreshIndex(context: context)
             await buffer.append(text, isFinal: true)
-            runningTranscript = text
+            currentUtterance = text
             lastSaidPhrases = text
             await matchNow()
         }
@@ -208,7 +208,7 @@ final class ListeningViewModel {
 
     func saveAIAnswer(topic name: String) async {
         guard let answer = aiAnswer else { return }
-        let trimmed = runningTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = currentUtterance.trimmingCharacters(in: .whitespacesAndNewlines)
         let question = trimmed.isEmpty ? "Live interview question" : String(trimmed.prefix(200))
         let keywords = KeywordSuggest.suggest(from: question + " " + answer.text, limit: 8)
         let normalized = NormalizedQA(

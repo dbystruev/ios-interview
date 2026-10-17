@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 struct LibraryView: View {
@@ -45,6 +46,11 @@ struct LibraryView: View {
                 }
             }
             .navigationTitle("Library")
+            .contentShape(Rectangle())
+            .onTapGesture {
+                UIApplication.shared.sendAction(
+                    #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button("Import") { importing = true }
